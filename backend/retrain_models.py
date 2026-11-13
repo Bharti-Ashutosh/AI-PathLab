@@ -1,8 +1,9 @@
 """
 retrain_models.py
 -----------------
-Retrains all sklearn .pkl models using the current scikit-learn version (1.x).
-The original models were trained with sklearn 0.21.3 and are incompatible.
+Retrains all sklearn .pkl models using the current scikit-learn version (1.x)
+on real clinical datasets with exact feature ordering and label conventions
+matching the frontend forms (1 = Unhealthy / Positive, 0 = Healthy / Negative).
 
 Run from the backend directory:
     python retrain_models.py
@@ -10,179 +11,233 @@ Run from the backend directory:
 
 import os
 import pickle
+import warnings
 import numpy as np
 import pandas as pd
 from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.pipeline import Pipeline
-from sklearn.datasets import load_breast_cancer, load_diabetes
-import warnings
-warnings.filterwarnings('ignore')
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import LabelEncoder
+from sklearn.datasets import fetch_openml, load_breast_cancer
+from sklearn.model_selection import cross_val_score
+
+warnings.filterwarnings("ignore")
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-models_dir = os.path.join(script_dir, 'aimodels')
-hp_dir = os.path.join(script_dir, 'HealthPredict')
+models_dir = os.path.join(script_dir, "aimodels")
+hp_dir = os.path.join(script_dir, "HealthPredict")
+os.makedirs(models_dir, exist_ok=True)
 
 print("=" * 60)
-print("Retraining all sklearn models for current scikit-learn...")
+print("Retraining all sklearn models on clinical datasets...")
 print("=" * 60)
 
 # ─────────────────────────────────────────────────────────────
-# 1. SVC Symptoms model — uses Training.csv
+# 1. SVC Symptoms model — uses HealthPredict/Training.csv
 # ─────────────────────────────────────────────────────────────
 print("\n[1/6] Training SVC symptoms model...")
 try:
-    df = pd.read_csv(os.path.join(hp_dir, 'Training.csv'))
+    df = pd.read_csv(os.path.join(hp_dir, "Training.csv"))
     df.columns = df.columns.str.strip()
-    X = df.drop('prognosis', axis=1)
-    y = df['prognosis']
+    X = df.drop("prognosis", axis=1)
+    y = df["prognosis"]
     le = LabelEncoder()
     y_enc = le.fit_transform(y)
-    svc = SVC(kernel='linear', probability=True)
+    svc = SVC(kernel="linear", probability=True)
     svc.fit(X, y_enc)
-    # Save mapping alongside model
     svc.classes_ = le.classes_
-    with open(os.path.join(models_dir, 'svc.pkl'), 'wb') as f:
+    with open(os.path.join(models_dir, "svc.pkl"), "wb") as f:
         pickle.dump(svc, f)
-    print("  ✓ svc.pkl saved")
+    print("  OK svc.pkl saved (132 features, 41 diseases)")
 except Exception as e:
-    print(f"  ✗ Failed: {e}")
+    print(f"  FAIL svc.pkl: {e}")
 
 # ─────────────────────────────────────────────────────────────
-# 2. Diabetes model — uses sklearn built-in dataset
-#    (Pima Indians diabetes: 8 features, binary output)
+# 2. Diabetes model — OpenML Pima Indians Diabetes (id=37, 8 features)
+#    Features: preg, plas, pres, skin, insu, mass, pedi, age
 # ─────────────────────────────────────────────────────────────
-print("\n[2/6] Training Diabetes model (8 features: Pima Indians format)...")
+print("\n[2/6] Training Diabetes model (OpenML 37, 8 features)...")
 try:
-    # Try to load Pima dataset from CSV if present
-    pima_path = os.path.join(script_dir, 'data', 'diabetes.csv')
-    if os.path.exists(pima_path):
-        df = pd.read_csv(pima_path)
-        X = df.drop('Outcome', axis=1).values
-        y = df['Outcome'].values
-    else:
-        # Synthetic Pima-compatible: 8 features, binary
-        # Features: Pregnancies, Glucose, BP, SkinThickness, Insulin, BMI, DPF, Age
-        np.random.seed(42)
-        n = 768
-        X = np.column_stack([
-            np.random.randint(0, 17, n),        # Pregnancies
-            np.random.randint(44, 200, n),       # Glucose
-            np.random.randint(24, 122, n),       # BloodPressure
-            np.random.randint(0, 99, n),         # SkinThickness
-            np.random.randint(0, 846, n),        # Insulin
-            np.random.uniform(18, 67, n),        # BMI
-            np.random.uniform(0.07, 2.4, n),     # DiabetesPedigreeFunction
-            np.random.randint(21, 81, n),        # Age
-        ])
-        # Label: high glucose + high BMI + older = diabetic
-        y = ((X[:, 1] > 140) & (X[:, 5] > 30) | (X[:, 7] > 50)).astype(int)
+    diab = fetch_openml(data_id=37, as_frame=True, parser="auto")
+    df_d = diab.frame
+    X_d = df_d[["preg", "plas", "pres", "skin", "insu", "mass", "pedi", "age"]].astype(float).values
+    y_d = (df_d["class"].astype(str).str.strip() == "tested_positive").astype(int).values
 
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X, y)
-    with open(os.path.join(models_dir, 'diabetes.pkl'), 'wb') as f:
-        pickle.dump(clf, f)
-    print("  OK diabetes.pkl saved (8 features)")
+    clf_d = RandomForestClassifier(n_estimators=200, max_depth=8, random_state=42)
+    cv = cross_val_score(clf_d, X_d, y_d, cv=5).mean()
+    clf_d.fit(X_d, y_d)
+    with open(os.path.join(models_dir, "diabetes.pkl"), "wb") as f:
+        pickle.dump(clf_d, f)
+    print(f"  OK diabetes.pkl saved (8 features, 5-fold CV={cv:.3f})")
 except Exception as e:
-    print(f"  FAIL: {e}")
-
+    print(f"  FAIL diabetes.pkl: {e}")
 
 # ─────────────────────────────────────────────────────────────
-# 3. Heart model — uses sklearn built-in heart disease dataset
+# 3. Heart Disease model — OpenML Cleveland Heart (id=49, 13 features)
+#    Features: age, sex, cp(1-4), trestbps, chol, fbs, restecg(0-2),
+#              thalach, exang, oldpeak, slope(1-3), ca(0-3), thal(3/6/7)
 # ─────────────────────────────────────────────────────────────
-print("\n[3/6] Training Heart Disease model...")
+print("\n[3/6] Training Heart Disease model (OpenML 49, 13 features)...")
 try:
-    from sklearn.datasets import fetch_openml
-    heart_path = os.path.join(script_dir, 'data', 'heart.csv')
-    if os.path.exists(heart_path):
-        df = pd.read_csv(heart_path)
-        # Try common column names
-        target_col = 'target' if 'target' in df.columns else df.columns[-1]
-        X = df.drop(target_col, axis=1).values
-        y = df[target_col].values
-    else:
-        # Generate synthetic heart-like data with 13 features
-        np.random.seed(42)
-        n = 1000
-        X = np.random.randn(n, 13)
-        y = (X[:, 0] + X[:, 2] - X[:, 4] > 0).astype(int)
-    
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X, y)
-    with open(os.path.join(models_dir, 'heart.pkl'), 'wb') as f:
-        pickle.dump(clf, f)
-    print("  ✓ heart.pkl saved")
+    heart = fetch_openml(data_id=49, as_frame=True, parser="auto")
+    df_h = heart.frame.copy()
+    df_h["sex"] = (df_h["sex"].astype(str).str.strip() == "male").astype(float)
+    df_h["cp"] = df_h["cp"].astype(str).str.strip().map(
+        {"typ_angina": 1, "atyp_angina": 2, "non_anginal": 3, "asympt": 4}
+    )
+    df_h["fbs"] = (df_h["fbs"].astype(str).str.strip() == "t").astype(float)
+    df_h["restecg"] = df_h["restecg"].astype(str).str.strip().map(
+        {"normal": 0, "st_t_wave_abnormality": 1, "left_vent_hyper": 2}
+    )
+    df_h["exang"] = (df_h["exang"].astype(str).str.strip() == "yes").astype(float)
+    df_h["slope"] = df_h["slope"].astype(str).str.strip().map(
+        {"up": 1, "flat": 2, "down": 3}
+    )
+    df_h["thal"] = df_h["thal"].astype(str).str.strip().map(
+        {"normal": 3, "fixed_defect": 6, "reversable_defect": 7}
+    )
+    df_h["target"] = (df_h["num"].astype(str).str.strip() != "<50").astype(int)
+
+    h_cols = [
+        "age", "sex", "cp", "trestbps", "chol", "fbs",
+        "restecg", "thalach", "exang", "oldpeak", "slope", "ca", "thal"
+    ]
+    for col in h_cols:
+        df_h[col] = pd.to_numeric(df_h[col], errors="coerce")
+    df_h = df_h.dropna(subset=h_cols)
+
+    X_h = df_h[h_cols].values
+    y_h = df_h["target"].values
+
+    clf_h = RandomForestClassifier(n_estimators=200, max_depth=6, random_state=42)
+    cv = cross_val_score(clf_h, X_h, y_h, cv=5).mean()
+    clf_h.fit(X_h, y_h)
+    with open(os.path.join(models_dir, "heart.pkl"), "wb") as f:
+        pickle.dump(clf_h, f)
+    print(f"  OK heart.pkl saved (13 features, 5-fold CV={cv:.3f})")
 except Exception as e:
-    print(f"  ✗ Failed: {e}")
+    print(f"  FAIL heart.pkl: {e}")
 
 # ─────────────────────────────────────────────────────────────
-# 4. Kidney model
+# 4. Kidney Disease model — OpenML CKD (id=42972, exact 18 features)
+#    Features: age, bp, al, su, rbc, pc, pcc, ba, bgr, bu, sc, pot, wc,
+#              htn, dm, cad, pe, ane
+#    Encoding: normal=0/abnormal=1, notpresent=0/present=1, no=0/yes=1
 # ─────────────────────────────────────────────────────────────
-print("\n[4/6] Training Kidney Disease model...")
+print("\n[4/6] Training Kidney Disease model (OpenML 42972, 18 features)...")
 try:
-    kidney_path = os.path.join(script_dir, 'data', 'kidney.csv')
-    if os.path.exists(kidney_path):
-        df = pd.read_csv(kidney_path)
-        target_col = 'classification' if 'classification' in df.columns else df.columns[-1]
-        df = df.dropna()
-        X = df.drop(target_col, axis=1).select_dtypes(include=[np.number]).values
-        y = (df[target_col].astype(str).str.strip() == 'ckd').astype(int)
-    else:
-        np.random.seed(42)
-        n = 400
-        X = np.random.randn(n, 24)
-        y = (X[:, 0] + X[:, 3] > 0).astype(int)
-    
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X, y)
-    with open(os.path.join(models_dir, 'kidney.pkl'), 'wb') as f:
-        pickle.dump(clf, f)
-    print("  ✓ kidney.pkl saved")
+    ckd = fetch_openml(data_id=42972, as_frame=True, parser="auto")
+    df_k = ckd.frame.copy()
+    df_k["classification"] = (
+        df_k["classification"].astype(str).str.replace("'", "").str.strip().str.lower()
+    )
+    df_k = df_k[df_k["classification"].isin(["ckd", "ckdt", "notckd"])]
+    df_k["target"] = df_k["classification"].isin(["ckd", "ckdt"]).astype(int)
+
+    for col in ["rbc", "pc"]:
+        df_k[col] = df_k[col].astype(str).str.strip().str.lower().map(
+            {"normal": 0, "abnormal": 1}
+        )
+    for col in ["pcc", "ba"]:
+        df_k[col] = df_k[col].astype(str).str.strip().str.lower().map(
+            {"notpresent": 0, "present": 1}
+        )
+    for col in ["htn", "dm", "cad", "pe", "ane"]:
+        s = (
+            df_k[col]
+            .astype(str)
+            .str.replace("'", "")
+            .str.strip()
+            .str.lower()
+            .replace({"tno": "no", "tyes": "yes"})
+        )
+        df_k[col] = s.map({"no": 0, "yes": 1})
+
+    k_cols = [
+        "age", "bp", "al", "su", "rbc", "pc", "pcc", "ba",
+        "bgr", "bu", "sc", "pot", "wc", "htn", "dm", "cad", "pe", "ane"
+    ]
+    for col in k_cols:
+        df_k[col] = pd.to_numeric(
+            df_k[col].astype(str).str.replace("'", "").str.replace("\t", "").str.strip(),
+            errors="coerce",
+        )
+        if df_k[col].isna().any():
+            df_k[col] = df_k[col].fillna(df_k[col].median())
+
+    X_k = df_k[k_cols].values
+    y_k = df_k["target"].values
+
+    clf_k = RandomForestClassifier(n_estimators=200, random_state=42)
+    cv = cross_val_score(clf_k, X_k, y_k, cv=5).mean()
+    clf_k.fit(X_k, y_k)
+    with open(os.path.join(models_dir, "kidney.pkl"), "wb") as f:
+        pickle.dump(clf_k, f)
+    print(f"  OK kidney.pkl saved (18 features, 5-fold CV={cv:.3f})")
 except Exception as e:
-    print(f"  ✗ Failed: {e}")
+    print(f"  FAIL kidney.pkl: {e}")
 
 # ─────────────────────────────────────────────────────────────
-# 5. Liver model
+# 5. Liver Disease model — OpenML ILPD (id=1480, 10 features)
+#    Exact frontend feature order in LiverDiseaseTest.jsx:
+#      Age(V1), Total Bilirubin(V3), Direct Bilirubin(V4),
+#      Alkaline Phosphotase(V5), Alamine Aminotransferase(V6),
+#      Aspartate Aminotransferase(V7), Total Protiens(V8),
+#      Albumin(V9), Albumin and Globulin Ratio(V10), Gender(Male=1,Female=0)
+#    Target: Class 1 (liver patient) -> 1, Class 2 (healthy) -> 0
 # ─────────────────────────────────────────────────────────────
-print("\n[5/6] Training Liver Disease model...")
+print("\n[5/6] Training Liver Disease model (OpenML 1480, 10 features)...")
 try:
-    liver_path = os.path.join(script_dir, 'data', 'liver.csv')
-    if os.path.exists(liver_path):
-        df = pd.read_csv(liver_path)
-        target_col = 'Dataset' if 'Dataset' in df.columns else df.columns[-1]
-        df = df.dropna()
-        X = df.drop(target_col, axis=1).select_dtypes(include=[np.number]).values
-        y = (df[target_col] == 1).astype(int)
-    else:
-        np.random.seed(42)
-        n = 583
-        X = np.abs(np.random.randn(n, 10))
-        y = (X[:, 0] + X[:, 2] > 1.5).astype(int)
-    
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X, y)
-    with open(os.path.join(models_dir, 'liver.pkl'), 'wb') as f:
-        pickle.dump(clf, f)
-    print("  ✓ liver.pkl saved")
+    ilpd = fetch_openml(data_id=1480, as_frame=True, parser="auto")
+    df_l = ilpd.frame.copy()
+    df_l["Gender"] = (df_l["V2"].astype(str).str.strip() == "Male").astype(float)
+    for col in ["V1", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10"]:
+        df_l[col] = pd.to_numeric(df_l[col], errors="coerce")
+    df_l = df_l.dropna()
+
+    X_l = df_l[["V1", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "Gender"]].values
+    y_l = (df_l["Class"].astype(str).str.strip() == "1").astype(int).values
+
+    # class_weight='balanced' handles the 71%/29% ILPD imbalance cleanly
+    clf_l = RandomForestClassifier(
+        n_estimators=300, max_depth=8, class_weight="balanced", random_state=42
+    )
+    cv = cross_val_score(clf_l, X_l, y_l, cv=5).mean()
+    clf_l.fit(X_l, y_l)
+    with open(os.path.join(models_dir, "liver.pkl"), "wb") as f:
+        pickle.dump(clf_l, f)
+    print(f"  OK liver.pkl saved (10 features, 5-fold CV={cv:.3f})")
 except Exception as e:
-    print(f"  ✗ Failed: {e}")
+    print(f"  FAIL liver.pkl: {e}")
 
 # ─────────────────────────────────────────────────────────────
-# 6. Breast Cancer model — uses sklearn built-in dataset
+# 6. Breast Cancer model — sklearn load_breast_cancer (exact 26 features)
+#    Labels inverted so 1 = Malignant (Unhealthy), 0 = Benign (Healthy)
 # ─────────────────────────────────────────────────────────────
-print("\n[6/6] Training Breast Cancer model...")
+print("\n[6/6] Training Breast Cancer model (26 features matching frontend)...")
 try:
-    data = load_breast_cancer()
-    X, y = data.data, data.target
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X, y)
-    with open(os.path.join(models_dir, 'breast_cancer.pkl'), 'wb') as f:
-        pickle.dump(clf, f)
-    print("  ✓ breast_cancer.pkl saved")
+    bc = load_breast_cancer(as_frame=True)
+    df_bc = bc.frame
+    bc_cols = [
+        "mean radius", "mean texture", "mean perimeter", "mean area", "mean smoothness",
+        "mean compactness", "mean concavity", "mean concave points", "mean symmetry",
+        "radius error", "perimeter error", "area error", "compactness error",
+        "concavity error", "concave points error", "fractal dimension error",
+        "worst radius", "worst texture", "worst perimeter", "worst area",
+        "worst smoothness", "worst compactness", "worst concavity", "worst concave points",
+        "worst symmetry", "worst fractal dimension",
+    ]
+    X_bc = df_bc[bc_cols].values
+    y_bc = 1 - df_bc["target"].values  # 1 = Malignant, 0 = Benign
+
+    clf_bc = RandomForestClassifier(n_estimators=200, random_state=42)
+    cv = cross_val_score(clf_bc, X_bc, y_bc, cv=5).mean()
+    clf_bc.fit(X_bc, y_bc)
+    with open(os.path.join(models_dir, "breast_cancer.pkl"), "wb") as f:
+        pickle.dump(clf_bc, f)
+    print(f"  OK breast_cancer.pkl saved (26 features, 5-fold CV={cv:.3f})")
 except Exception as e:
-    print(f"  ✗ Failed: {e}")
+    print(f"  FAIL breast_cancer.pkl: {e}")
 
 print("\n" + "=" * 60)
-print("Retraining complete! Verify with: python test_predict.py")
+print("Retraining complete!")
 print("=" * 60)

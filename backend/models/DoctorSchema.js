@@ -7,6 +7,7 @@ const Appointment = new Schema({
   price: String,
   bookedOn: String,
   testName: String,
+  testResult: String,
 });
 
 const DoctorSchema = new mongoose.Schema({
@@ -30,7 +31,7 @@ const DoctorSchema = new mongoose.Schema({
     type: Array,
   },
 
-  bio: { type: String, maxLength: 50 },
+  bio: { type: String, maxLength: 200 },
   about: { type: String },
   timeSlots: { type: Array },
   reviews: [{ type: mongoose.Types.ObjectId, ref: "Review" }],
@@ -45,7 +46,7 @@ const DoctorSchema = new mongoose.Schema({
   isApproved: {
     type: String,
     enum: ["pending", "approved", "cancelled"],
-    default: "pending",
+    default: "approved",
   },
   appointments: [Appointment],
 });

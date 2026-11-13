@@ -1,114 +1,51 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { BASE_URL } from "../../../config";
-import DcotorsDropDown from "../../DoctorDropDown/DoctorDropDown";
+import React from "react";
+import TabularDiseasePredictor from "./TabularDiseasePredictor";
 
-const KidneyDiseaseTest = () => {
-  const [inputData, setInputData] = useState({
-    Age: "",
-    BP: "",
-    AL: "",
-    SU: "",
-    RBC: "",
-    PC: "",
-    PCC: "",
-    BA: "",
-    BGR: "",
-    BU: "",
-    SC: "",
-    POT: "",
-    WC: "",
-    HTN: "",
-    DM: "",
-    CAD: "",
-    PE: "",
-    ANE: "",
-  });
-  const [prediction, setPrediction] = useState(null);
-  const [formError, setFormError] = useState("");
+const YES_NO_OPTIONS = [
+  { value: "0", label: "No (0)" },
+  { value: "1", label: "Yes (1)" },
+];
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setInputData({ ...inputData, [name]: value });
-    setFormError("");
-  };
+const NORMAL_ABNORMAL_OPTIONS = [
+  { value: "0", label: "Normal (0)" },
+  { value: "1", label: "Abnormal (1)" },
+];
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    // Check if any field is empty
-    const isFormFilled = Object.values(inputData).every(
-      (value) => value.trim() !== ""
-    );
-    if (!isFormFilled) {
-      setFormError("Please fill out all fields.");
-      return;
-    }
-    try {
-      const response = await axios.post(`${BASE_URL}/kidney`, {
-        data: inputData,
-      });
-      setPrediction(response.data.prediction);
-    } catch (error) {
-      console.error("Error:", error);
-    }
-  };
+const PRESENT_OPTIONS = [
+  { value: "0", label: "Not Present (0)" },
+  { value: "1", label: "Present (1)" },
+];
 
-  return (
-    <div className="m-5 row mb-32">
-      <div className="col-md-2"></div>
-      <div className="col-md-8">
-        <h1 className="text-center text-3xl font-bold mb-8">
-          Kidney Disease Predictor
-        </h1>
-        <div className="card border border-black rounded-lg p-8">
-          <form className="form-horizontal" onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.entries(inputData).map(([name, value]) => (
-                <div key={name} className="col-span-1">
-                  <input
-                    className="border border-black p-2 w-full"
-                    type="text"
-                    name={name}
-                    placeholder={`${name}`}
-                    value={value}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              ))}
-              {/* Form error message */}
-              {formError && (
-                <div className="text-red-500 mb-4">{formError}</div>
-              )}
-            </div>
-            {/* Submit button */}
-            <input
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full w-full mt-3"
-              value="Predict"
-            />
-          </form>
-          {/* Prediction result */}
-          {prediction !== null && (
-            <div
-              className={`mt-3 ${
-                prediction.includes("[1]") ? "bg-red-400" : "bg-green-400"
-              } text-2xl`}
-            >
-              <h3 className="text-center">
-                {prediction.includes("[1]")
-                  ? "Sorry! Please consult your doctor."
-                  : "Great! You are HEALTHY."}
-              </h3>
-            </div>
-          )}
-        </div>
-      </div>
-      <DcotorsDropDown
-        testName={"Kidney Disease Predictor"}
-        testResult={prediction?.includes("[1]") ? "Unhealthy" : "Healthy"}
-      />
-    </div>
-  );
-};
+const FIELDS = [
+  { name: "Age", label: "Age (years)", placeholder: "e.g. 40" },
+  { name: "BP", label: "Blood Pressure (mm/Hg)", placeholder: "e.g. 80" },
+  { name: "AL", label: "Albumin (0 - 5)", placeholder: "e.g. 0" },
+  { name: "SU", label: "Sugar (0 - 5)", placeholder: "e.g. 0" },
+  { name: "RBC", label: "Red Blood Cells (RBC)", options: NORMAL_ABNORMAL_OPTIONS },
+  { name: "PC", label: "Pus Cell (PC)", options: NORMAL_ABNORMAL_OPTIONS },
+  { name: "PCC", label: "Pus Cell Clumps (PCC)", options: PRESENT_OPTIONS },
+  { name: "BA", label: "Bacteria (BA)", options: PRESENT_OPTIONS },
+  { name: "BGR", label: "Blood Glucose Random (mg/dL)", placeholder: "e.g. 95" },
+  { name: "BU", label: "Blood Urea (mg/dL)", placeholder: "e.g. 25" },
+  { name: "SC", label: "Serum Creatinine (mg/dL)", placeholder: "e.g. 0.9" },
+  { name: "POT", label: "Potassium (mEq/L)", placeholder: "e.g. 4.2" },
+  { name: "WC", label: "White Blood Cell Count (cells/cumm)", placeholder: "e.g. 7500" },
+  { name: "HTN", label: "Hypertension (HTN)", options: YES_NO_OPTIONS },
+  { name: "DM", label: "Diabetes Mellitus (DM)", options: YES_NO_OPTIONS },
+  { name: "CAD", label: "Coronary Artery Disease (CAD)", options: YES_NO_OPTIONS },
+  { name: "PE", label: "Pedal Edema (PE)", options: YES_NO_OPTIONS },
+  { name: "ANE", label: "Anemia (ANE)", options: YES_NO_OPTIONS },
+];
+
+const KidneyDiseaseTest = () => (
+  <TabularDiseasePredictor
+    title="Kidney Disease Predictor"
+    endpoint="/kidney"
+    testName="Kidney Disease Predictor"
+    fields={FIELDS}
+    healthySample={[40, 80, 0, 0, 0, 0, 0, 0, 95, 25, 0.9, 4.2, 7500, 0, 0, 0, 0, 0]}
+    unhealthySample={[62, 80, 2, 3, 0, 0, 0, 0, 423, 53, 1.8, 4.5, 7500, 1, 1, 0, 0, 1]}
+  />
+);
 
 export default KidneyDiseaseTest;

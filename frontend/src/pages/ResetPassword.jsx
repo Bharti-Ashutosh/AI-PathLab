@@ -35,17 +35,8 @@ const ResetPassword = () => {
         throw new Error(result.message);
       }
 
-      dispatch({
-        type: "LOGIN_SUCCESS",
-        payload: {
-          user: result.data,
-          token: result.token,
-          role: result.role,
-        },
-      });
-
       setLoading(false);
-      toast.success(result.message);
+      toast.success(result.message || "Password reset successfully.");
       navigate("/login");
     } catch (err) {
       toast.error(err.message);

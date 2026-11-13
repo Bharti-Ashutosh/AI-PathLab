@@ -1,27 +1,29 @@
 const convertTime = (time) => {
-  // Check if the time string contains the colon character
-  if (!time.includes(":")) {
-    // If the colon is not present, return an error message or handle it as per your requirement
-    return "Invalid time format";
+  if (!time || typeof time !== "string" || !time.includes(":")) {
+    return "N/A";
   }
-  const timeParts = time.split(":");
 
-  let hours = parseInt(timeParts[0]);
-  const minutes = parseInt(timeParts[1]);
+  const timeParts = time.split(":");
+  let hours = parseInt(timeParts[0], 10);
+  const minutes = parseInt(timeParts[1], 10);
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return "N/A";
+  }
 
   let meridiem = "am";
-
   if (hours >= 12) {
     meridiem = "pm";
-
     if (hours > 12) {
       hours -= 12;
     }
+  } else if (hours === 0) {
+    hours = 12;
   }
 
   return (
     hours.toString().padStart(2, "0") +
-    ":" + // Ensure hours are always 2 digits
+    ":" +
     minutes.toString().padStart(2, "0") +
     " " +
     meridiem

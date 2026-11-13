@@ -36,6 +36,9 @@ const FeedbackForm = () => {
         throw new Error(result.message);
       }
       setLoading(false);
+      setReviewText("");
+      setRating(0);
+      setHover(0);
       toast.success(result.message);
     } catch (err) {
       setLoading(false);
@@ -86,6 +89,7 @@ const FeedbackForm = () => {
         <textarea
           className="border border-solid border-[#0066ff34] focus:outline outline-primaryColor w-full px-4 py-3 rounded-md"
           rows="5"
+          value={reviewText}
           placeholder="Enter your feedback and suggestions here ..."
           onChange={(e) => setReviewText(e.target.value)}
         ></textarea>

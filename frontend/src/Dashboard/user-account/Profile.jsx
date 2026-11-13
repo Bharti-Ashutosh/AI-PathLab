@@ -1,71 +1,84 @@
-import { useEffect, useState } from "react";
-
-import { useNavigate } from "react-router-dom";
+import { useContext, useEffect, useState } from "react";
 import uploadImageToCloudinary from "../../utils/uploadCloudinary.js";
-import { BASE_URL, token } from "../../config.js";
+import { BASE_URL, getToken } from "../../config.js";
 import { toast } from "react-toastify";
 import HashLoader from "react-spinners/HashLoader";
-const Profile = ({ user }) => {
+import { authContext } from "../../context/AuthContext.jsx";
+
+const Profile = ({ user, onUpdated }) => {
+  const { dispatch } = useContext(authContext);
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Inside Profile component
   const [formData, setFormData] = useState({
-    name: user.name || "",
-    email: user.email || "",
-    password: user.password || "",
-    photo: user.photo || null,
-    gender: user.gender || "",
-    bloodType: user.bloodType || "",
+    name: "",
+    email: "",
+    password: "",
+    photo: "",
+    gender: "male",
+    bloodType: "",
   });
 
-  const navigate = useNavigate();
-
   useEffect(() => {
+    if (!user) return;
     setFormData({
-      name: user.name,
-      email: user.email,
-      photo: user.photo,
-      gender: user.gender,
-      bloodType: user.bloodType,
+      name: user.name || "",
+      email: user.email || "",
+      password: "",
+      photo: user.photo || "",
+      gender: user.gender || "male",
+      bloodType: user.bloodType || "",
     });
   }, [user]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-  const handleFileInputChange = async (event) => {
-    const file = event.target.files[0];
-    const data = await uploadImageToCloudinary(file);
 
-    setSelectedFile(data.url);
-    setFormData((prevFormData) => ({
-      ...prevFormData,
-      photo: data.url || prevFormData.photo,
-    }));
+  const handleFileInputChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await uploadImageToCloudinary(file);
+      if (data?.url) {
+        setSelectedFile(file.name);
+        setFormData((prevFormData) => ({
+          ...prevFormData,
+          photo: data.url,
+        }));
+      }
+    } catch {
+      toast.error("Failed to process image");
+    }
   };
+
   const submitHandler = async (event) => {
-    // console.log(formData);
     event.preventDefault();
     setLoading(true);
 
     try {
+      const payload = { ...formData };
+      if (!payload.password) delete payload.password;
+
       const res = await fetch(`${BASE_URL}/users/${user._id}`, {
         method: "put",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
-      const { message } = await res.json();
+      const result = await res.json();
       if (!res.ok) {
-        throw new Error(message);
+        throw new Error(result.message || "Failed to update profile");
       }
 
+      if (result.data) {
+        dispatch({ type: "UPDATE_USER", payload: result.data });
+      }
       setLoading(false);
-      toast.success(message);
-      navigate("/users/profile/me");
+      toast.success(result.message);
+      if (onUpdated) onUpdated();
     } catch (err) {
       toast.error(err.message);
       setLoading(false);
@@ -101,7 +114,7 @@ const Profile = ({ user }) => {
         <div className="mb-5">
           <input
             type="password"
-            placeholder="Password"
+            placeholder="New Password (leave blank to keep current)"
             name="password"
             value={formData.password}
             onChange={handleInputChange}
@@ -112,12 +125,11 @@ const Profile = ({ user }) => {
         <div className="mb-5">
           <input
             type="text"
-            placeholder="Blood Type"
+            placeholder="Blood Type (e.g. O+)"
             name="bloodType"
             value={formData.bloodType}
             onChange={handleInputChange}
             className="w-full pr-4 py-3 border-b border-solid border-[#0066ff61] focus:outline-none focus:border-b-primaryColor text-[16px] leading-7 text-headingColor placeholder:text-textColor cursor-pointer"
-            required
           />
         </div>
 
@@ -130,7 +142,6 @@ const Profile = ({ user }) => {
               value={formData.gender}
               onChange={handleInputChange}
             >
-              <option value="select">Select</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
@@ -140,11 +151,11 @@ const Profile = ({ user }) => {
 
         <div className="mb-5 flex items-center gap-3">
           {formData.photo && (
-            <figure className="w-[60px] h-[60px] rounded-full border-2 border-solid border-primaryColor flex items-center justify-center">
+            <figure className="w-[60px] h-[60px] rounded-full border-2 border-solid border-primaryColor flex items-center justify-center overflow-hidden">
               <img
                 src={formData.photo}
-                className="w-full rounded-full"
-                alt=""
+                className="w-full h-full object-cover rounded-full"
+                alt="Avatar"
               />
             </figure>
           )}
@@ -154,25 +165,24 @@ const Profile = ({ user }) => {
               type="file"
               name="photo"
               id="customFile"
-              accept=".jpg,.png"
+              accept=".jpg,.jpeg,.png"
               className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
-              // value={formData.photo}
               onChange={handleFileInputChange}
             />
             <label
               htmlFor="customFile"
               className="absolute top-0 left-0 w-full h-full flex items-center px-[0.75rem] py-[0.375rem] text-[15px] leading-6 overflow-hidden bg-[#0066ff46] text-headingColor font-semibold rounded-lg truncate cursor-pointer"
             >
-              {selectedFile ? selectedFile.name : "Upload Photo"}
+              {selectedFile || "Upload Photo"}
             </label>
           </div>
         </div>
 
         <div className="mt-7">
           <button
-            disabled={loading && true}
+            disabled={loading}
             type="submit"
-            className="w-full bg-primaryColor text-white text-[18px] leading-[30px] rounded-lg px-4 py-4"
+            className="w-full bg-primaryColor text-white text-[18px] leading-[30px] rounded-lg px-4 py-4 flex justify-center items-center"
           >
             {loading ? <HashLoader size={35} color="#ffffff" /> : "Update"}
           </button>

@@ -7,6 +7,8 @@ import Login from "../pages/Login";
 import Contact from "../pages/Contact";
 import Doctors from "../pages/Doctors/Doctors";
 import DoctorDetails from "../pages/Doctors/DoctorDetails";
+import Locations from "../pages/Locations";
+import About from "../components/About/About";
 import { Routes, Route } from "react-router-dom";
 import MyAccount from "../Dashboard/user-account/MyAccount";
 import Dashboard from "../Dashboard/doctor-account/Dashboard";
@@ -22,8 +24,11 @@ const Routers = () => {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/home" element={<Home />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/locations" element={<Locations />} />
       <Route path="/symptomchk" element={<Symptomchk />} />
       <Route path="/doctors" element={<Doctors />} />
+      <Route path="/find-a-doctor" element={<Doctors />} />
       <Route path="/doctors/:id" element={<DoctorDetails />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Signup />} />
@@ -31,11 +36,10 @@ const Routers = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:id/:token" element={<ResetPassword />} />
 
-
       <Route
         path="/services"
         element={
-          <ProtectedRoute allowedRoles={["patient", "doctor", "admin"]}>
+          <ProtectedRoute allowedRoles={["patient", "doctor", "assistant", "admin"]}>
             <Services />
           </ProtectedRoute>
         }
@@ -44,7 +48,7 @@ const Routers = () => {
       <Route
         path="/users/profile/me"
         element={
-          <ProtectedRoute allowedRoles={["patient"]}>
+          <ProtectedRoute allowedRoles={["patient", "assistant"]}>
             <MyAccount />
           </ProtectedRoute>
         }
@@ -62,7 +66,7 @@ const Routers = () => {
         <Route
           key={service.id}
           path={`/disease/${service.id}`}
-          element={<DiseasePage service={service} />} // Pass the service data to the DiseasePage component
+          element={<DiseasePage service={service} />}
         />
       ))}
     </Routes>

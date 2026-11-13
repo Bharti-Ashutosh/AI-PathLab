@@ -4,19 +4,30 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import User from "../models/UserSchema.js";
+import Doctor from "../models/DoctorSchema.js";
+
 const router = express.Router();
 dotEnv.config();
 
-// POST route for form submission
 router.post("/forgot-password", async (req, res) => {
-  const { email } = req.body;
-  User.findOne({ email: email }).then((user) => {
-    if (!user) {
-      return res.send({ status: "User not exists." });
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
     }
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY, {
+
+    let account = await User.findOne({ email });
+    if (!account) {
+      account = await Doctor.findOne({ email });
+    }
+    if (!account) {
+      return res.status(404).json({ message: "No account found with this email." });
+    }
+
+    const token = jwt.sign({ id: account._id }, process.env.JWT_SECRET_KEY, {
       expiresIn: "1d",
     });
+
     const transporter = nodemailer.createTransport({
       service: "gmail",
       host: "smtp.gmail.com",
@@ -27,43 +38,52 @@ router.post("/forgot-password", async (req, res) => {
         pass: process.env.APP_PASS,
       },
     });
+
+    const clientUrl = process.env.CLIENT_SITE_URL || "http://localhost:5173";
     const mailOptions = {
       from: {
-        name: "Abdul Wahab",
-        user: process.env.USER,
+        name: "AI-PathLab",
+        address: process.env.USER,
       },
-      to: "awminhas619@gmail.com",
-      subject: "Sending Email for Reset Password",
-      text: `http://localhost:5173/reset-password/${user._id}/${token}`,
+      to: account.email,
+      subject: "AI-PathLab Password Reset Link",
+      text: `Click the link below to reset your password:\n${clientUrl}/reset-password/${account._id}/${token}`,
     };
-    transporter.sendMail(mailOptions, function (error, info) {
-      if (error) {
-        res.status(500).json({ message: "Failed to send email" });
-      } else {
-        res.status(200).json({ message: "Success" });
-      }
-    });
-  });
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ message: "Password reset link sent to your email." });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Failed to send password reset email." });
+  }
 });
 
-router.post("/reset-password/:id/:token", (req, res) => {
+router.post("/reset-password/:id/:token", async (req, res) => {
   const { id, token } = req.params;
   const { password } = req.body;
 
-  jwt.verify(token, process.env.JWT_SECRET_KEY, (err, decoded) => {
-    if (err) {
-      return res.json({ message: "Error with token" });
-    } else {
-      bcrypt
-        .hash(password, 10)
-        .then((hash) => {
-          User.findOneAndUpdate({ _id: id }, { password: hash })
-            .then((u) => res.send({ message: "Success" }))
-            .catch((err) => res.send({ message: err }));
-        })
-        .catch((err) => res.send({ message: err }));
+  if (!password) {
+    return res.status(400).json({ message: "New password is required." });
+  }
+
+  try {
+    jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
+
+    let updated = await User.findByIdAndUpdate(id, { password: hash }, { new: true });
+    if (!updated) {
+      updated = await Doctor.findByIdAndUpdate(id, { password: hash }, { new: true });
     }
-  });
+    if (!updated) {
+      return res.status(404).json({ message: "Account not found." });
+    }
+
+    res.status(200).json({ message: "Password updated successfully." });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(400).json({ message: "Invalid or expired reset link." });
+  }
 });
 
 export default router;

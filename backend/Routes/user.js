@@ -6,28 +6,49 @@ import {
   getSingleUser,
   getUserProfile,
   getMyAppointments,
+  getAllLabBookings,
+  updateBookingStatus,
   createAppointment,
 } from "../Controllers/userController.js";
 import { authenticate, restrict } from "../auth/verifyToken.js";
 
 const router = express.Router();
 
-router.get("/:id", authenticate, restrict(["patient"]), getSingleUser); // Fetch a single user
-router.get("/", authenticate, restrict(["admin"]), getAllUsers); // Fetch all users
-router.delete("/:id", authenticate, restrict(["patient"]), deleteUser); // Delete a user
-router.put("/:id", authenticate, restrict(["patient"]), updateUser); // Update a user
-router.get("/profile/me", authenticate, restrict(["patient"]), getUserProfile); // get userProfile
+// Specific static routes BEFORE /:id parameter routes
+router.get(
+  "/profile/me",
+  authenticate,
+  restrict(["patient", "assistant"]),
+  getUserProfile
+);
 router.get(
   "/appointments/my-appointments",
   authenticate,
-  restrict(["patient"]),
+  restrict(["patient", "assistant"]),
   getMyAppointments
-); // get myappointments
+);
+router.get(
+  "/appointments/lab-bookings",
+  authenticate,
+  restrict(["assistant", "admin"]),
+  getAllLabBookings
+);
+router.put(
+  "/appointments/lab-bookings/:id",
+  authenticate,
+  restrict(["assistant", "admin"]),
+  updateBookingStatus
+);
 router.post(
   "/appointments/create-appointment",
   authenticate,
-  restrict(["patient"]),
+  restrict(["patient", "assistant"]),
   createAppointment
-); // create appointment
+);
+
+router.get("/", authenticate, restrict(["admin"]), getAllUsers);
+router.get("/:id", authenticate, restrict(["patient", "assistant"]), getSingleUser);
+router.put("/:id", authenticate, restrict(["patient", "assistant"]), updateUser);
+router.delete("/:id", authenticate, restrict(["patient", "assistant"]), deleteUser);
 
 export default router;

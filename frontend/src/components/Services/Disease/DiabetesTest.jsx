@@ -1,102 +1,27 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { BASE_URL } from "../../../config";
-import DcotorsDropDown from "../../DoctorDropDown/DoctorDropDown";
+import React from "react";
+import TabularDiseasePredictor from "./TabularDiseasePredictor";
 
-const DiabetesTest = () => {
-  const [inputData, setInputData] = useState({
-    "Number of Pregnancies eg. 0": "",
-    "Glucose (mg/dL) eg. 80": "",
-    "Blood Pressure (mmHg) eg. 80": "",
-    "Skin Thickness (mm) eg. 20": "",
-    "Insulin Level (IU/mL) eg. 80": "",
-    "Body Mass Index (kg/m²) eg. 23.1": "",
-    "Diabetes Pedigree Function eg. 0.52": "",
-    "Age (years) eg. 34": "",
-  });
-  const [prediction, setPrediction] = useState(null);
-  const [formError, setFormError] = useState("");
+const FIELDS = [
+  { name: "Number of Pregnancies eg. 0", label: "Pregnancies", placeholder: "e.g. 0" },
+  { name: "Glucose (mg/dL) eg. 80", label: "Glucose (mg/dL)", placeholder: "e.g. 85" },
+  { name: "Blood Pressure (mmHg) eg. 80", label: "Blood Pressure (mmHg)", placeholder: "e.g. 70" },
+  { name: "Skin Thickness (mm) eg. 20", label: "Skin Thickness (mm)", placeholder: "e.g. 20" },
+  { name: "Insulin Level (IU/mL) eg. 80", label: "Insulin Level (IU/mL)", placeholder: "e.g. 80" },
+  { name: "Body Mass Index (kg/m²) eg. 23.1", label: "Body Mass Index (BMI kg/m²)", placeholder: "e.g. 23.1" },
+  { name: "Diabetes Pedigree Function eg. 0.52", label: "Diabetes Pedigree Function", placeholder: "e.g. 0.52" },
+  { name: "Age (years) eg. 34", label: "Age (years)", placeholder: "e.g. 34" },
+];
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setInputData({ ...inputData, [name]: value });
-    setFormError("");
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    // Check if any field is empty
-    const isFormFilled = Object.values(inputData).every(
-      (value) => value.trim() !== ""
-    );
-    if (!isFormFilled) {
-      setFormError("Please fill out all fields.");
-      return;
-    }
-    try {
-      const response = await axios.post(`${BASE_URL}/diabetes`, {
-        data: inputData,
-      });
-      setPrediction(response.data.prediction);
-    } catch (error) {
-      console.error("Error:", error);
-    }
-  };
-
-  return (
-    <div>
-      <div className="flex justify-center">
-        <div className="w-2/3">
-          <h1 className="text-center text-2xl font-bold">Diabetes Predictor</h1>
-          <div className="bg-white border border-black rounded p-4">
-            <form onSubmit={handleSubmit}>
-              {/* Input fields */}
-              {Object.entries(inputData).map(([name, value]) => (
-                <div key={name} className="mb-4">
-                  <input
-                    className="border border-black rounded px-3 py-2 w-full"
-                    type="text"
-                    name={name}
-                    placeholder={`${name}`}
-                    value={value}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              ))}
-              {/* Form error message */}
-              {formError && (
-                <div className="text-red-500 mb-4">{formError}</div>
-              )}
-              {/* Submit button */}
-              <input
-                type="submit"
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                value="Predict"
-              />
-            </form>
-          </div>
-          {/* Prediction result */}
-          {prediction !== null && (
-            <div
-              className={`mt-3 ${
-                prediction.includes("[1]") ? "bg-red-400" : "bg-green-400"
-              } text-2xl`}
-            >
-              <h3 className="text-center">
-                {prediction.includes("[1]")
-                  ? "Sorry! Please consult your doctor."
-                  : "Great! You are HEALTHY."}
-              </h3>
-            </div>
-          )}
-        </div>
-      </div>
-      <DcotorsDropDown
-        testName={"Diabetes Disease Predictor"}
-        testResult={prediction?.includes("[1]") ? "Unhealthy" : "Healthy"}
-      />
-    </div>
-  );
-};
+const DiabetesTest = () => (
+  <TabularDiseasePredictor
+    title="Diabetes Predictor"
+    endpoint="/diabetes"
+    testName="Diabetes Disease Predictor"
+    fields={FIELDS}
+    gridColsClass="grid-cols-1 md:grid-cols-2"
+    healthySample={[0, 85, 66, 29, 0, 26.6, 0.351, 31]}
+    unhealthySample={[6, 180, 72, 35, 150, 36.6, 0.627, 50]}
+  />
+);
 
 export default DiabetesTest;

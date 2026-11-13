@@ -8,7 +8,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore')
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 from tensorflow.keras import layers, models
 
 def build_pneumonia_model():
@@ -33,9 +33,10 @@ def build_pneumonia_model():
     return model
 
 def preprocess_image(image_path):
-    img = Image.open(image_path).convert('L')
+    """Preprocess chest X-Ray image for pneumonia.h5 (trained on 36x36 grayscale 0..1)."""
+    img = ImageOps.exif_transpose(Image.open(image_path)).convert('L')
     img = img.resize((36, 36))
-    img_array = np.asarray(img)
+    img_array = np.asarray(img, dtype=np.float32)
     img_array = img_array.reshape((1, 36, 36, 1))
     img_array = img_array / 255.0
     return img_array

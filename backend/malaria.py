@@ -8,7 +8,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore')
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 from tensorflow.keras import layers, models
 
 def build_malaria_model():
@@ -33,11 +33,13 @@ def build_malaria_model():
     return model
 
 def preprocess_image(image_path):
-    img = Image.open(image_path).convert('RGB')
+    """Preprocess blood smear image for malaria.h5 (trained on 36x36 BGR 0..255)."""
+    img = ImageOps.exif_transpose(Image.open(image_path)).convert('RGB')
     img = img.resize((36, 36))
-    img_array = np.asarray(img)
+    img_array = np.asarray(img, dtype=np.float32)
+    # Convert RGB -> BGR to match OpenCV imread channel order and retain 0..255 pixel scale
+    img_array = img_array[..., ::-1]
     img_array = img_array.reshape((1, 36, 36, 3))
-    img_array = img_array / 255.0
     return img_array
 
 if __name__ == "__main__":

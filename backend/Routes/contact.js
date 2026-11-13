@@ -24,12 +24,13 @@ router.post("/contact", async (req, res) => {
     // Send email using the transporter
     let info = await transporter.sendMail({
       from: {
-        name: "Ashu",
+        name: "AI-PathLab Support",
         address: process.env.USER,
       },
-      to: "noemail@gmail.com",
-      subject: subject,
-      text: `Email: ${email}\n\nMessage: ${message}`,
+      to: process.env.USER,
+      replyTo: email,
+      subject: `[AI-PathLab Contact] ${subject}`,
+      text: `From: ${email}\n\nMessage:\n${message}`,
     });
 
     // Send response with email info and success message

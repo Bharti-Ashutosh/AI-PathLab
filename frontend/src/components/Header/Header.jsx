@@ -1,6 +1,7 @@
 import "../../App.css";
 import React, { useEffect, useRef, useContext } from "react";
 import logo from "../../assets/images/Logo1.png";
+import defaultAvatar from "../../assets/images/avatar-icon.png";
 import { NavLink, Link } from "react-router-dom";
 import { BiMenu } from "react-icons/bi";
 import { AiOutlineClose } from "react-icons/ai";
@@ -34,8 +35,9 @@ const Header = () => {
   const menuRef = useRef(null);
   const { user, role, token } = useContext(authContext);
 
-  const handleStickyHeader = () => {
-    window.addEventListener("scroll", () => {
+  useEffect(() => {
+    const onScroll = () => {
+      if (!headerRef.current) return;
       if (
         document.body.scrollTop > 80 ||
         document.documentElement.scrollTop > 80
@@ -44,15 +46,13 @@ const Header = () => {
       } else {
         headerRef.current.classList.remove("sticky__header");
       }
-    });
-  };
+    };
 
-  useEffect(() => {
-    handleStickyHeader();
-    return () => window.removeEventListener("scroll", handleStickyHeader);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const toggleMenu = () => menuRef.current.classList.toggle("show__menu");
+  const toggleMenu = () => menuRef.current?.classList.toggle("show__menu");
 
   return (
     <header className="header flex items-center" ref={headerRef}>
@@ -97,11 +97,11 @@ const Header = () => {
                       : "/users/profile/me"
                   }`}
                 >
-                  <figure className="w-[35px] h-[35px] rounded-full cursor-pointer">
+                  <figure className="w-[35px] h-[35px] rounded-full cursor-pointer overflow-hidden">
                     <img
-                      src={user?.photo}
-                      alt="User"
-                      className="w-full rounded-full"
+                      src={user?.photo || defaultAvatar}
+                      alt={user?.name || "User"}
+                      className="w-full h-full object-cover rounded-full"
                     />
                   </figure>
                 </Link>

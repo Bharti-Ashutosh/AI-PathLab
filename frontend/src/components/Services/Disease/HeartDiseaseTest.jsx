@@ -1,109 +1,94 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { BASE_URL } from "../../../config";
-import DcotorsDropDown from "../../DoctorDropDown/DoctorDropDown";
+import React from "react";
+import TabularDiseasePredictor from "./TabularDiseasePredictor";
 
+const FIELDS = [
+  { name: "Age", label: "Age (years)", placeholder: "e.g. 45" },
+  {
+    name: "Sex (Male:1, Female:0)",
+    label: "Sex",
+    options: [
+      { value: "1", label: "Male (1)" },
+      { value: "0", label: "Female (0)" },
+    ],
+  },
+  {
+    name: "Chest Pain Type",
+    label: "Chest Pain Type",
+    options: [
+      { value: "1", label: "Typical Angina (1)" },
+      { value: "2", label: "Atypical Angina (2)" },
+      { value: "3", label: "Non-Anginal Pain (3)" },
+      { value: "4", label: "Asymptomatic (4)" },
+    ],
+  },
+  { name: "Resting Blood Pressure (mm Hg)", label: "Resting Blood Pressure (mm Hg)", placeholder: "e.g. 120" },
+  { name: "Serum Cholestoral (mg/dl)", label: "Serum Cholesterol (mg/dl)", placeholder: "e.g. 210" },
+  {
+    name: "Fasting Blood Sugar (1 = true; 0 = false)",
+    label: "Fasting Blood Sugar > 120 mg/dl",
+    options: [
+      { value: "0", label: "False / <= 120 (0)" },
+      { value: "1", label: "True / > 120 (1)" },
+    ],
+  },
+  {
+    name: "Resting Electrocardiographic Results",
+    label: "Resting ECG Results",
+    options: [
+      { value: "0", label: "Normal (0)" },
+      { value: "1", label: "ST-T Wave Abnormality (1)" },
+      { value: "2", label: "Left Ventricular Hypertrophy (2)" },
+    ],
+  },
+  { name: "Maximum heart rate achieved", label: "Max Heart Rate Achieved", placeholder: "e.g. 165" },
+  {
+    name: "Exercise Induced Angina (1 = yes; 0 = no)",
+    label: "Exercise Induced Angina",
+    options: [
+      { value: "0", label: "No (0)" },
+      { value: "1", label: "Yes (1)" },
+    ],
+  },
+  { name: "ST Depression Induced by Exercise Relative to Rest", label: "ST Depression (Oldpeak)", placeholder: "e.g. 0.8" },
+  {
+    name: "Slope of the Peak Exercise ST Segment",
+    label: "Slope of Peak Exercise ST",
+    options: [
+      { value: "1", label: "Upsloping (1)" },
+      { value: "2", label: "Flat (2)" },
+      { value: "3", label: "Downsloping (3)" },
+    ],
+  },
+  {
+    name: "Number of Major Vessels (0-3) Colored by Flourosopy",
+    label: "Major Vessels (0-3)",
+    options: [
+      { value: "0", label: "0" },
+      { value: "1", label: "1" },
+      { value: "2", label: "2" },
+      { value: "3", label: "3" },
+    ],
+  },
+  {
+    name: "3 = Normal; 6 = Fixed Defect; 7 = Reversable Defect",
+    label: "Thalassemia (Thal)",
+    options: [
+      { value: "3", label: "Normal (3)" },
+      { value: "6", label: "Fixed Defect (6)" },
+      { value: "7", label: "Reversible Defect (7)" },
+    ],
+  },
+];
 
-const HeartDiseaseTest = () => {
-  const [inputData, setInputData] = useState({
-    Age: "",
-    "Sex (Male:1, Female:0)": "",
-    "Chest Pain Type": "",
-    "Resting Blood Pressure (mm Hg)": "",
-    "Serum Cholestoral (mg/dl)": "",
-    "Fasting Blood Sugar (1 = true; 0 = false)": "",
-    "Resting Electrocardiographic Results": "",
-    "Maximum heart rate achieved": "",
-    "Exercise Induced Angina (1 = yes; 0 = no)": "",
-    "ST Depression Induced by Exercise Relative to Rest": "",
-    "Slope of the Peak Exercise ST Segment": "",
-    "Number of Major Vessels (0-3) Colored by Flourosopy": "",
-    "3 = Normal; 6 = Fixed Defect; 7 = Reversable Defect": "",
-  });
-  const [prediction, setPrediction] = useState(null);
-  const [formError, setFormError] = useState("");
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setInputData({ ...inputData, [name]: value });
-    setFormError("");
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    // Check if any field is empty
-    const isFormFilled = Object.values(inputData).every(
-      (value) => value.trim() !== ""
-    );
-    if (!isFormFilled) {
-      setFormError("Please fill out all fields.");
-      return;
-    }
-    try {
-      const response = await axios.post(`${BASE_URL}/heart`, {
-        data: inputData,
-      });
-      setPrediction(response.data.prediction);
-    } catch (error) {
-      console.error("Error:", error);
-    }
-  };
-  return (
-    <div className="m-5 row mb-32">
-      <div className="col-md-2"></div>
-      <div className="col-md-8">
-        <h1 className="text-center text-3xl font-bold mb-8">
-          Heart Disease Predictor
-        </h1>
-        <div className="card border border-black rounded-lg p-8">
-          <form className="form-horizontal" onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.entries(inputData).map(([name, value]) => (
-                <div key={name} className="col-span-1">
-                  <input
-                    className="border border-black p-2 w-full"
-                    type="text"
-                    name={name}
-                    placeholder={`${name}`}
-                    value={value}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              ))}
-              {/* Form error message */}
-              {formError && (
-                <div className="text-red-500 mb-4">{formError}</div>
-              )}
-              {/* Submit button */}
-              <input
-                type="submit"
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                value="Predict"
-              />
-            </div>
-          </form>
-          {/* Prediction result */}
-          {prediction !== null && (
-            <div
-              className={`mt-3 ${
-                prediction.includes("[1]") ? "bg-red-400" : "bg-green-400"
-              } text-2xl`}
-            >
-              <h3 className="text-center">
-                {prediction.includes("[1]")
-                  ? "Sorry! Please consult your doctor."
-                  : "Great! You are HEALTHY."}{" "}
-              </h3>
-            </div>
-          )}
-        </div>
-      </div>
-      <DcotorsDropDown
-        testName={"Heart Disease Predictor"}
-        testResult={prediction?.includes("[1]") ? "Unhealthy" : "Healthy"}
-      />
-    </div>
-  );
-};
+const HeartDiseaseTest = () => (
+  <TabularDiseasePredictor
+    title="Heart Disease Predictor"
+    endpoint="/heart"
+    testName="Heart Disease Predictor"
+    fields={FIELDS}
+    healthySample={[37, 1, 3, 130, 250, 0, 0, 187, 0, 3.5, 3, 0, 3]}
+    unhealthySample={[67, 1, 4, 160, 286, 0, 2, 108, 1, 1.5, 2, 3, 3]}
+  />
+);
 
 export default HeartDiseaseTest;

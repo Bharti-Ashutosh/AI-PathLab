@@ -14,56 +14,71 @@ const generateToken = (user) => {
 };
 
 export const register = async (req, res) => {
-  const { email, password, name, role, photo, gender } = req.body;
+  const { email, password, name, role = "patient", photo, gender } = req.body;
 
   try {
-    let user = null;
-
-    if (role === "patient") {
-      user = await User.findOne({ email });
-    } else if (role === "doctor") {
-      user = await Doctor.findOne({ email });
+    if (!email || !password || !name) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Name, email, and password are required" });
     }
 
-    //check if user exist
-    if (user) {
-      return res.status(400).json({ message: "User already exist" });
+    if (!["patient", "doctor", "assistant"].includes(role)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please select a valid role (Patient, Doctor, or Lab Assistant)" });
     }
 
-    //hash password
+    // Check duplicate email across both User and Doctor collections
+    const existingUser = await User.findOne({ email });
+    const existingDoctor = await Doctor.findOne({ email });
+
+    if (existingUser || existingDoctor) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User already exists" });
+    }
+
+    const validGender = ["male", "female", "other"].includes(gender)
+      ? gender
+      : "other";
+
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashPassword = await bcrypt.hash(password, salt);
 
-    if (role === "patient") {
-      user = new User({
-        name,
-        email,
-        password: hashPassword,
-        photo,
-        gender,
-        role,
-      });
-    }
-
+    let newAccount = null;
     if (role === "doctor") {
-      user = new Doctor({
+      newAccount = new Doctor({
         name,
         email,
         password: hashPassword,
         photo,
-        gender,
+        gender: validGender,
+        role: "doctor",
+        isApproved: "approved",
+      });
+    } else {
+      // Both "patient" and "assistant" (Lab Assistant) live in UserSchema
+      newAccount = new User({
+        name,
+        email,
+        password: hashPassword,
+        photo,
+        gender: validGender,
         role,
       });
     }
 
-    await user.save();
+    await newAccount.save();
     res
       .status(200)
-      .json({ success: true, message: "User Successfully created" });
+      .json({ success: true, message: "User successfully created" });
   } catch (error) {
+    console.error("Registration error:", error);
     res
       .status(500)
-      .json({ success: false, message: "Internal server error, Try again" });
+      .json({ success: false, message: error.message || "Internal server error, Try again" });
   }
 };
 
@@ -73,36 +88,32 @@ export const login = async (req, res) => {
   try {
     let user = null;
 
-    const patient = await User.findOne({ email });
+    const regularUser = await User.findOne({ email });
     const doctor = await Doctor.findOne({ email });
-    const admin = await User.findOne({ email, role: "admin" }); // Add admin check
+    const admin = await User.findOne({ email, role: "admin" });
 
-    if (patient) {
-      user = patient;
+    if (regularUser) {
+      user = regularUser;
     }
     if (doctor) {
       user = doctor;
     }
     if (admin) {
-      // Handle admin login
       user = admin;
     }
 
-    //check if user exist
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    //compare password
     const isPasswordMatch = await bcrypt.compare(password, user.password);
 
     if (!isPasswordMatch) {
       return res
-        .status(404)
+        .status(401)
         .json({ status: false, message: "Invalid Credentials, try again" });
     }
 
-    // get token
     const token = generateToken(user);
     const { password: userPassword, role, appointments, ...rest } = user._doc;
     res.status(200).json({

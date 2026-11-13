@@ -8,7 +8,7 @@ const UserSchema = new mongoose.Schema({
   photo: { type: String },
   role: {
     type: String,
-    enum: ["patient", "doctor", "admin"],
+    enum: ["patient", "doctor", "assistant", "admin"],
     default: "patient",
   },
   gender: { type: String, enum: ["male", "female", "other"] },

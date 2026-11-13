@@ -15,8 +15,8 @@ const Signup = () => {
     name: "",
     email: "",
     password: "",
-    photo: selectedFile,
-    gender: "",
+    photo: "",
+    gender: "male",
     role: "patient",
   });
   const navigate = useNavigate();
@@ -24,23 +24,34 @@ const Signup = () => {
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
   const handleFileInputChange = async (event) => {
-    const file = event.target.files[0];
-    const data = await uploadImageToCloudinary(file);
-
-    setPreviewUrl(data.url);
-    setSelectedFile(data.url);
-    setFormData({ ...formData, photo: data.url });
-
-    // console.log(data);
-    //late we use it
-    // console.log(file);
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await uploadImageToCloudinary(file);
+      if (data?.url) {
+        setPreviewUrl(data.url);
+        setSelectedFile(data.url);
+        setFormData((prev) => ({ ...prev, photo: data.url }));
+      }
+    } catch (err) {
+      toast.error("Failed to process selected image");
+    }
   };
-  const submitHandler = async (event) => {
-    // console.log(formData);
-    event.preventDefault();
-    setLoading(true);
 
+  const submitHandler = async (event) => {
+    event.preventDefault();
+    if (!["patient", "doctor", "assistant"].includes(formData.role)) {
+      toast.error("Please select a valid account role");
+      return;
+    }
+    if (!["male", "female", "other"].includes(formData.gender)) {
+      toast.error("Please select a valid gender");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`${BASE_URL}/auth/register`, {
         method: "post",
@@ -49,19 +60,20 @@ const Signup = () => {
         },
         body: JSON.stringify(formData),
       });
-      const { message } = await res.json();
+      const result = await res.json();
       if (!res.ok) {
-        throw new Error(message);
+        throw new Error(result.message || "Registration failed");
       }
 
       setLoading(false);
-      toast.success(message);
+      toast.success(result.message);
       navigate("/login");
     } catch (err) {
       toast.error(err.message);
       setLoading(false);
     }
   };
+
   return (
     <section className="px-5 xl:px-0">
       <div className="max-w-[1170px] mx-auto">
@@ -73,7 +85,7 @@ const Signup = () => {
             </figure>
           </div>
 
-          {/* ========== img box ========== */}
+          {/* ========== form box ========== */}
           <div className="rounded-l-lg lg:pl-16 py-10">
             <h3 className="text-headingColor text-[22px] leading-9 font-bold mb-10">
               Create an <span className="text-primaryColor">account</span>
@@ -113,7 +125,7 @@ const Signup = () => {
                 />
               </div>
 
-              <div className="mb-5 flex items-center justify-between">
+              <div className="mb-5 flex items-center justify-between flex-wrap gap-4">
                 <label className="text-headingColor font-bold text-[16px] leading-7">
                   Are you a:
                   <select
@@ -122,7 +134,6 @@ const Signup = () => {
                     value={formData.role}
                     onChange={handleInputChange}
                   >
-                    <option value="select">Select</option>
                     <option value="patient">Patient</option>
                     <option value="doctor">Doctor</option>
                     <option value="assistant">Lab Assistant</option>
@@ -137,7 +148,6 @@ const Signup = () => {
                     value={formData.gender}
                     onChange={handleInputChange}
                   >
-                    <option value="select">Select</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
                     <option value="other">Other</option>
@@ -147,11 +157,11 @@ const Signup = () => {
 
               <div className="mb-5 flex items-center gap-3">
                 {selectedFile && (
-                  <figure className="w-[60px] h-[60px] rounded-full border-2 border-solid border-primaryColor flex items-center justify-center">
+                  <figure className="w-[60px] h-[60px] rounded-full border-2 border-solid border-primaryColor flex items-center justify-center overflow-hidden">
                     <img
                       src={previewUrl}
-                      className="w-full rounded-full"
-                      alt=""
+                      className="w-full h-full object-cover rounded-full"
+                      alt="Profile preview"
                     />
                   </figure>
                 )}
@@ -161,9 +171,8 @@ const Signup = () => {
                     type="file"
                     name="photo"
                     id="customFile"
-                    accept=".jpg,.png"
+                    accept=".jpg,.jpeg,.png"
                     className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
-                    // value={formData.photo}
                     onChange={handleFileInputChange}
                   />
                   <label
@@ -177,9 +186,9 @@ const Signup = () => {
 
               <div className="mt-7">
                 <button
-                  disabled={loading && true}
+                  disabled={loading}
                   type="submit"
-                  className="w-full bg-primaryColor text-white text-[18px] leading-[30px] rounded-lg px-4 py-4"
+                  className="w-full bg-primaryColor text-white text-[18px] leading-[30px] rounded-lg px-4 py-4 flex justify-center items-center"
                 >
                   {loading ? (
                     <HashLoader size={35} color="#ffffff" />

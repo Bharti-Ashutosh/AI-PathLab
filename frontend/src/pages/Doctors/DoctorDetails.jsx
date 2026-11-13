@@ -1,5 +1,5 @@
 import { useState } from "react";
-import doctorImg from "../../assets/images/doctor-img02.png";
+import defaultDoctorImg from "../../assets/images/doctor-img02.png";
 import starIcon from "../../assets/images/Star.png";
 import DoctorAbout from "./DoctorAbout";
 import Feedback from "./Feedback";
@@ -23,8 +23,8 @@ const DoctorDetails = () => {
   const {
     name,
     timeSlots,
-    averageRating,
-    totalRating,
+    averageRating = 0,
+    totalRating = 0,
     photo,
     bio,
     about,
@@ -33,39 +33,41 @@ const DoctorDetails = () => {
     ticketPrice,
     reviews,
     qualifications,
-  } = doctor;
+  } = doctor || {};
 
   return (
     <section>
       <div className="max-w-[1170px] px-5 mx-auto">
         {loading && <Loader />}
-        {error && <Error />}
-        {!loading && !error && (
+        {error && <Error errMessage={error} />}
+        {!loading && !error && doctor && (
           <div className="grid md:grid-cols-3 gap-[50px]">
             <div className="md:col-span-2">
               <div className="flex items-center gap-5">
-                <figure className="max-w-[200px] max-h-[200px]">
-                  <img src={photo} alt="" className="w-full" />
+                <figure className="w-[200px] h-[200px] overflow-hidden rounded-lg bg-gray-100">
+                  <img
+                    src={photo || defaultDoctorImg}
+                    alt={name || "Doctor"}
+                    className="w-full h-full object-cover"
+                  />
                 </figure>
                 <div>
                   <span className="bg-[#CCF0F3] text-irisBlueColor py-1 px-6 lg:py-2 lg:px-6 text-[12px] leading-4 lg:text-[16px] lg:leading-7 font-semibold rounded">
-                    {specialization}
+                    {specialization || "Specialist"}
                   </span>
                   <h3 className="text-headingColor text-[22px] leading-9 mt-3 font-bold">
                     {name}
                   </h3>
                   <div className="flex items-center gap-[6px]">
                     <span className="flex items-center gap-[6px] text-[14px] leading-5 lg:text-[16px] lg:leading-7 font-semibold text-headingColor">
-                      <img src={starIcon} alt="" /> {averageRating}
+                      <img src={starIcon} alt="" /> {Number(averageRating).toFixed(1)}
                     </span>
                     <span className="text-[14px] leading-5 lg:text-[16px] lg:leading-7 font-[400] text-textColor">
                       ({totalRating})
                     </span>
                   </div>
                   <p className="text__para text-[14px] leading-6 md:text-[15px] lg:max-w-[390px]">
-                    Lorem ipsum, dolor sit amet consectetur adipisicing elit.
-                    Ratione nihil sequi provident sit minus ab hic dicta
-                    possimus, optio animi?
+                    {bio || "Experienced specialist dedicated to comprehensive patient care."}
                   </p>
                 </div>
               </div>
@@ -74,8 +76,7 @@ const DoctorDetails = () => {
                 <button
                   onClick={() => setTab("about")}
                   className={`${
-                    tab === "about" &&
-                    "border-b border-solid border-primaryColor"
+                    tab === "about" ? "border-b border-solid border-primaryColor " : ""
                   }py-2 px-5 mr-5 text-[16px] leading-7 text-headingColor font-semibold`}
                 >
                   About
@@ -84,9 +85,8 @@ const DoctorDetails = () => {
                 <button
                   onClick={() => setTab("feedback")}
                   className={`${
-                    tab === "feedback" &&
-                    "border-b border-solid border-primaryColor"
-                  } py-2 px-5 mr-5 text-[16px] leading-7 text-headingColor font-semibold`}
+                    tab === "feedback" ? "border-b border-solid border-primaryColor " : ""
+                  }py-2 px-5 mr-5 text-[16px] leading-7 text-headingColor font-semibold`}
                 >
                   Feedback
                 </button>

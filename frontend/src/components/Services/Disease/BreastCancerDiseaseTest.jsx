@@ -1,122 +1,52 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { BASE_URL } from "../../../config";
-import DcotorsDropDown from "../../DoctorDropDown/DoctorDropDown";
+import React from "react";
+import TabularDiseasePredictor from "./TabularDiseasePredictor";
 
-const BreastCancerPredictor = () => {
-  const [inputData, setInputData] = useState({
-    radius_mean: "",
-    texture_mean: "",
-    perimeter_mean: "",
-    area_mean: "",
-    smoothness_mean: "",
-    compactness_mean: "",
-    concavity_mean: "",
-    concave_points_mean: "",
-    symmetry_mean: "",
-    radius_se: "",
-    perimeter_se: "",
-    area_se: "",
-    compactness_se: "",
-    concavity_se: "",
-    concave_points_se: "",
-    fractal_dimension_se: "",
-    radius_worst: "",
-    texture_worst: "",
-    perimeter_worst: "",
-    area_worst: "",
-    smoothness_worst: "",
-    compactness_worst: "",
-    concavity_worst: "",
-    concave_points_worst: "",
-    symmetry_worst: "",
-    fractal_dimension_worst: "",
-  });
-  const [prediction, setPrediction] = useState(null);
-  const [formError, setFormError] = useState("");
+const FIELDS = [
+  { name: "radius_mean", label: "Radius Mean", placeholder: "e.g. 13.54" },
+  { name: "texture_mean", label: "Texture Mean", placeholder: "e.g. 14.36" },
+  { name: "perimeter_mean", label: "Perimeter Mean", placeholder: "e.g. 87.46" },
+  { name: "area_mean", label: "Area Mean", placeholder: "e.g. 566.3" },
+  { name: "smoothness_mean", label: "Smoothness Mean", placeholder: "e.g. 0.0978" },
+  { name: "compactness_mean", label: "Compactness Mean", placeholder: "e.g. 0.0813" },
+  { name: "concavity_mean", label: "Concavity Mean", placeholder: "e.g. 0.0666" },
+  { name: "concave_points_mean", label: "Concave Points Mean", placeholder: "e.g. 0.0478" },
+  { name: "symmetry_mean", label: "Symmetry Mean", placeholder: "e.g. 0.1885" },
+  { name: "radius_se", label: "Radius SE", placeholder: "e.g. 0.2699" },
+  { name: "perimeter_se", label: "Perimeter SE", placeholder: "e.g. 2.058" },
+  { name: "area_se", label: "Area SE", placeholder: "e.g. 23.56" },
+  { name: "compactness_se", label: "Compactness SE", placeholder: "e.g. 0.0146" },
+  { name: "concavity_se", label: "Concavity SE", placeholder: "e.g. 0.0239" },
+  { name: "concave_points_se", label: "Concave Points SE", placeholder: "e.g. 0.0132" },
+  { name: "fractal_dimension_se", label: "Fractal Dimension SE", placeholder: "e.g. 0.0023" },
+  { name: "radius_worst", label: "Radius Worst", placeholder: "e.g. 15.11" },
+  { name: "texture_worst", label: "Texture Worst", placeholder: "e.g. 19.26" },
+  { name: "perimeter_worst", label: "Perimeter Worst", placeholder: "e.g. 99.7" },
+  { name: "area_worst", label: "Area Worst", placeholder: "e.g. 711.2" },
+  { name: "smoothness_worst", label: "Smoothness Worst", placeholder: "e.g. 0.144" },
+  { name: "compactness_worst", label: "Compactness Worst", placeholder: "e.g. 0.1773" },
+  { name: "concavity_worst", label: "Concavity Worst", placeholder: "e.g. 0.239" },
+  { name: "concave_points_worst", label: "Concave Points Worst", placeholder: "e.g. 0.1288" },
+  { name: "symmetry_worst", label: "Symmetry Worst", placeholder: "e.g. 0.2977" },
+  { name: "fractal_dimension_worst", label: "Fractal Dimension Worst", placeholder: "e.g. 0.0726" },
+];
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setInputData({ ...inputData, [name]: value });
-    setFormError("");
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    // Check if any field is empty
-    const isFormFilled = Object.values(inputData).every(
-      (value) => value.trim() !== ""
-    );
-    if (!isFormFilled) {
-      setFormError("Please fill out all fields.");
-      return;
-    }
-    try {
-      const response = await axios.post(`${BASE_URL}/breast-cancer`, {
-        data: inputData,
-      });
-      setPrediction(response.data.prediction);
-    } catch (error) {
-      console.error("Error:", error);
-    }
-  };
-
-  return (
-    <div className="m-5 row mb-32">
-      <div className="col-md-2"></div>
-      <div className="col-md-8">
-        <h1 className="text-center text-3xl font-bold mb-8">
-          BreastCancer Disease Predictor
-        </h1>
-        <div className="card border border-black rounded-lg p-8">
-          <form className="form-horizontal" onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.entries(inputData).map(([name, value]) => (
-                <div key={name} className="col-span-1">
-                  <input
-                    className="border border-black p-2 w-full"
-                    type="text"
-                    name={name}
-                    placeholder={`${name}`}
-                    value={value}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              ))}
-              {/* Form error message */}
-              {formError && (
-                <div className="text-red-500 mb-4">{formError}</div>
-              )}
-            </div>
-            {/* Submit button */}
-            <input
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full w-full mt-3"
-              value="Predict"
-            />
-          </form>
-          {/* Prediction result */}
-          {prediction !== null && (
-            <div
-              className={`mt-3 ${
-                prediction.includes("[1]") ? "bg-red-400" : "bg-green-400"
-              } text-2xl`}
-            >
-              <h3 className="text-center">
-                {prediction.includes("[1]")
-                  ? "Sorry! Please consult your doctor."
-                  : "Great! You are HEALTHY."}
-              </h3>
-            </div>
-          )}
-        </div>
-      </div>
-      <DcotorsDropDown
-        testName={"Breast Cancer Predictor"}
-        testResult={prediction?.includes("[1]") ? "Unhealthy" : "Healthy"}
-      />
-    </div>
-  );
-};
+const BreastCancerPredictor = () => (
+  <TabularDiseasePredictor
+    title="Breast Cancer Disease Predictor"
+    endpoint="/breast-cancer"
+    testName="Breast Cancer Predictor"
+    fields={FIELDS}
+    healthySample={[
+      13.54, 14.36, 87.46, 566.3, 0.0978, 0.0813, 0.0666, 0.0478, 0.1885,
+      0.2699, 2.058, 23.56, 0.0146, 0.0239, 0.0132, 0.0023,
+      15.11, 19.26, 99.7, 711.2, 0.144, 0.1773, 0.239, 0.1288, 0.2977, 0.0726,
+    ]}
+    unhealthySample={[
+      17.99, 10.38, 122.8, 1001.0, 0.1184, 0.2776, 0.3001, 0.1471, 0.2419,
+      1.095, 8.589, 153.4, 0.049, 0.0537, 0.0159, 0.0062,
+      25.38, 17.33, 184.6, 2019.0, 0.1622, 0.6656, 0.7119, 0.2654, 0.4601, 0.1189,
+    ]}
+  />
+);
 
 export default BreastCancerPredictor;

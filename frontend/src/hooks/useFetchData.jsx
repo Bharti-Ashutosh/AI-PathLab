@@ -1,13 +1,20 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const useFetchData = (url) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [reloadTick, setReloadTick] = useState(0);
+
+  const refetch = useCallback(() => {
+    setReloadTick((t) => t + 1);
+  }, []);
 
   useEffect(() => {
+    if (!url) return;
     const fetchData = async () => {
       setLoading(true);
+      setError(null);
       try {
         const token = localStorage.getItem("token");
         const headers = {};
@@ -19,7 +26,6 @@ const useFetchData = (url) => {
         const result = await res.json();
 
         if (!res.ok) {
-          // If token is invalid or expired, clear stale credentials so user is not stuck
           if (
             res.status === 401 &&
             (result.message === "Invalid token" ||
@@ -40,8 +46,9 @@ const useFetchData = (url) => {
       }
     };
     fetchData();
-  }, [url]);
-  return { data, loading, error };
+  }, [url, reloadTick]);
+
+  return { data, loading, error, refetch };
 };
 
 export default useFetchData;

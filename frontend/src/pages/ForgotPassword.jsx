@@ -34,17 +34,8 @@ const ForgotPassword = () => {
         throw new Error(result.message);
       }
 
-      dispatch({
-        type: "LOGIN_SUCCESS",
-        payload: {
-          user: result.data,
-          token: result.token,
-          role: result.role,
-        },
-      });
-
       setLoading(false);
-      toast.success(result.message);
+      toast.success(result.message || "Reset link sent to your email.");
       navigate("/login");
     } catch (err) {
       toast.error(err.message);
